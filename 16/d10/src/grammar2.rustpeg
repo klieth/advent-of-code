@@ -1,0 +1,20 @@
+use super::Command;
+use super::Give;
+
+#[pub]
+parse -> Vec<Command>
+  = command*
+
+command -> Command
+  = "value " n1:number " goes to bot " n2:number newline { Command::Input(n1, n2) }
+  / "bot " n1:number " gives low to " low_thing:to_thing " and high to " high_thing:to_thing newline { Command::Bot(n1, low_thing, high_thing) }
+
+to_thing -> Give
+  = "bot " n:number { Give::Bot(n) }
+  / "output " n:number { Give::Output(n) }
+
+number -> usize
+  = n:$([0-9]+) { n.parse().unwrap() }
+
+newline -> ()
+  = "\n"

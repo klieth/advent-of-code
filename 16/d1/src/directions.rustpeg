@@ -1,0 +1,11 @@
+use super::Turn;
+
+#[pub]
+parse -> Vec<(Turn, isize)>
+  = command*
+
+command -> (Turn, isize)
+  = turn:turn dist:$([0-9]*) ", "? { (turn, dist.parse::<isize>().unwrap()) }
+
+turn -> Turn
+  = letter:$([RL]) { match letter { "R" => Turn::Right, "L" => Turn::Left, _ => panic!("wrong turn") } }

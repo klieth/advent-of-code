@@ -1,0 +1,16 @@
+[package]
+name = "d10"
+version = "0.1.0"
+authors = ["Kai Lieth <kai@squareup.com>"]
+
+[dependencies]
+peg-syntax-ext = "*"
+petgraph = "*"
+
+[[bin]]
+name = "part_one"
+path = "src/part_one.rs"
+
+[[bin]]
+name = "part_two"
+path = "src/part_two.rs"

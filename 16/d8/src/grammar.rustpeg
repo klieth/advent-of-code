@@ -1,0 +1,31 @@
+use super::Command;
+
+#[pub]
+parse -> Vec<Command>
+  = command*
+
+command -> Command
+  = rect
+  / rotate
+
+rect -> Command
+  = "rect" whitespace n1:number "x" n2:number whitespace { Command::Rect(n1, n2) }
+
+rotate -> Command
+  = "rotate" whitespace rot_type:rot_type whitespace [xy] "=" n1:number whitespace "by" whitespace n2:number whitespace {
+    match rot_type {
+      "row" => Command::RotateRow(n1, n2),
+      "column" => Command::RotateCol(n1, n2),
+      _ => unreachable!(),
+    }
+  }
+
+rot_type -> &'input str
+  = $("row")
+  / $("column")
+
+number -> usize
+  = n:$([0-9]+) { n.parse().unwrap() }
+
+whitespace -> ()
+  = [ \n]*

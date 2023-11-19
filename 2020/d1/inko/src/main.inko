@@ -1,0 +1,109 @@
+import std.env
+import std.fmt.(fmt)
+import std.fs.file.ReadOnlyFile
+import std.int.(Int, Format)
+import std.stdio.STDOUT
+
+class async Main {
+  fn part1(content: ref Array[Int]) -> Int {
+    let mut outer = 0
+
+    let mut found = Option.None
+
+    while outer < (content.size - 2) {
+      let mut inner = 1
+
+      while inner < (content.size - 1) {
+        let o = content.get(outer)
+        let i = content.get(inner)
+
+        if o + i == 2020 {
+          found = Option.Some(o * i)
+          break
+        }
+
+        inner += 1
+      }
+
+      match ref found {
+        case Some(_) -> break
+        case _ -> {}
+      }
+
+      outer += 1
+    }
+
+    match found {
+      case Some(x) -> return x
+      case _ -> panic("failed to find the answer")
+    }
+  }
+
+  fn part2(content: ref Array[Int]) -> Int {
+    let mut found = Option.None
+
+    let mut first = 0
+
+    while first < (content.size - 3) {
+      let mut second = first + 1
+
+      while second < (content.size - 2) {
+        let mut third = second + 1
+
+        while third < (content.size - 1) {
+          let f = content.get(first)
+          let s = content.get(second)
+          let t = content.get(third)
+
+          if f + s + t == 2020 {
+            found = Option.Some(f * s * t)
+            break
+          }
+
+          third += 1
+        }
+
+        match ref found {
+          case Some(_) -> break
+          case _ -> {}
+        }
+
+        second += 1
+      }
+
+      match ref found {
+        case Some(_) -> break
+        case _ -> {}
+      }
+
+      first += 1
+    }
+
+    match found {
+      case Some(x) -> return x
+      case _ -> panic("failed to find the answer")
+    }
+  }
+
+  fn async main {
+    let args = env.arguments
+    let stdout = STDOUT.new
+
+    let file = ReadOnlyFile.new(args.get(0)).expect("couldn't find file: " + args.get(0))
+    let content = ByteArray.new
+    file.read_all(content)
+    let content = content.to_string.trim
+
+    let content = content
+      .split("\n")
+      .map fn (v) { Int.parse(v, Format.Decimal).unwrap }
+      .to_array
+
+    if content.size < 3 {
+      panic("array is too small")
+    }
+
+    stdout.print(fmt(part1(content)))
+    stdout.print(fmt(part2(content)))
+  }
+}

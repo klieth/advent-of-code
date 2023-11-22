@@ -1,0 +1,136 @@
+import std.env
+import std.fmt.(fmt)
+import std.fs.file.ReadOnlyFile
+import std.int.(Int, Format)
+import std.iter.Iter
+import std.range.InclusiveRange
+import std.stdio.STDOUT
+
+class Validation {
+  let @range: InclusiveRange
+  let @char: String
+}
+
+import std.iter.Stream
+class ResultStream[T, E] {
+  let @func: fn -> Option[Result[T, E]]
+
+  fn pub static from_stream(stream: Stream[Result[T, E]]) -> ResultStream[T, E] {
+    ResultStream { @func = fn { stream.next } }
+  }
+}
+
+impl Iter[Result[T, E]] for ResultStream {
+  fn pub mut next -> Option[Result[T, E]] {
+    @func.call
+  }
+}
+
+impl ResultStream {
+  fn pub move try_to_array -> Result[Array[T], E] {
+    # TODO: try_reduce is in std lib in the next version, replace this manual implementation with that
+    let mut result = []
+
+    loop {
+      match self.next {
+        case Some(s) -> match s {
+          case Ok(v) -> result.push(v)
+          case Error(e) -> return Result.Error(e)
+        }
+        case _ -> return Result.Ok(result)
+      }
+    }
+  }
+}
+
+impl Option {
+  fn move ok_or[E](error: E) -> Result[T, E] {
+    match self {
+      case Some(v) -> Result.Ok(v)
+      case _ -> Result.Error(error)
+    }
+  }
+}
+
+# trait TryFromIter[V] {
+#   fn pub try_to_array[E, T: Iter[Result[V, E]] + mut](iter: T) -> Result[Array[V], E] {
+#     # TODO: try_reduce is in std lib in the next version, replace this manual implementation with that
+#     let mut result = []
+# 
+#     loop {
+#       match iter.next {
+#         case Some(s) -> match s {
+#           case Ok(v) -> result.push(v)
+#           case Error(e) -> return Result.Error(e)
+#         }
+#         case _ -> return Result.Ok(result)
+#       }
+#     }
+#   }
+# }
+# 
+# impl TryFromIter[T] for Array { }
+
+class async Main {
+  fn parse(raw: String) -> Result[Array[(Validation, String)], String] {
+    let a = raw.split('\n')
+      .map fn (line) {
+        let parts = line.split(':')
+
+        let limit_parts = (try parts.next.ok_or("line parse failed")).split(' ')
+        let range_parts = (try limit_parts.next.ok_or("limit parse failed"))
+          .split('-')
+
+        let start = try range_parts.next.ok_or("range parse failed")
+          .then fn (v) { Int.parse(v, Format.Decimal).ok_or("int parse failed") }
+        let end = try range_parts.next.ok_or("range parse failed second")
+          .then fn (v) { Int.parse(v, Format.Decimal).ok_or("int parse failed second") }
+
+        Result.Ok( (
+          Validation {
+            @range = InclusiveRange.new(start, end),
+            @char = limit_parts.next.expect("limit parse failed second")
+          },
+          parts.next.expect("line parse failed second")
+        ) )
+      }
+
+    return ResultStream.from_stream(a).try_to_array
+  }
+
+  fn validate(content: Nil) -> Result[Nil, String] {
+    throw "unimplemented"
+  }
+
+  fn part1(content: Nil) -> Nil {
+    panic("unimplemented")
+  }
+
+  fn part2(content: Nil) -> Nil {
+    panic("unimplemented")
+  }
+
+  fn async main {
+    let args = env.arguments
+    let stdout = STDOUT.new
+
+    let file = ReadOnlyFile.new(args.get(0)).expect("couldn't find file: " + args.get(0))
+    let content = ByteArray.new
+    file.read_all(content)
+
+    let content = match parse(content.to_string.trim) {
+      case Ok(o) -> o
+      case Error(e) -> panic(e)
+    }
+
+    stdout.print(fmt(content))
+
+    match validate(content) {
+      case Error(e) -> panic(e)
+      case _ -> {}
+    }
+
+    stdout.print(fmt(part1(content)))
+    # stdout.print(fmt(part2(content)))
+  }
+}

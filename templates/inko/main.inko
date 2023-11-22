@@ -1,0 +1,44 @@
+import std.env
+import std.fmt.(fmt)
+import std.fs.file.ReadOnlyFile
+import std.stdio.STDOUT
+
+class async Main {
+  fn parse(raw: String) -> Result[Nil, String] {
+    throw "unimplemented"
+  }
+
+  fn validate(content: Nil) -> Result[Nil, String] {
+    throw "unimplemented"
+  }
+
+  fn part1(content: Nil) -> Nil {
+    panic("unimplemented")
+  }
+
+  fn part2(content: Nil) -> Nil {
+    panic("unimplemented")
+  }
+
+  fn async main {
+    let args = env.arguments
+    let stdout = STDOUT.new
+
+    let file = ReadOnlyFile.new(args.get(0)).expect("couldn't find file: " + args.get(0))
+    let content = ByteArray.new
+    file.read_all(content)
+
+    let content = match parse(content.to_string.trim) {
+      case Ok(o) -> o
+      case Error(e) -> panic(e)
+    }
+
+    match validate(content) {
+      case Error(e) -> panic(e)
+      case _ -> {}
+    }
+
+    stdout.print(fmt(part1(content)))
+    # stdout.print(fmt(part2(content)))
+  }
+}

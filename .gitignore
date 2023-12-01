@@ -16,3 +16,9 @@ zig-out
 # ====== Idris ======
 idris-out
 **/*.ibc
+
+# ====== Lean ======
+build/
+lakefile.olean
+lake-packages/
+.lake/

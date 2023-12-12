@@ -8,9 +8,12 @@
 
 typedef enum {
   PARSER_ADJACENT,
+  PARSER_ANY_CHAR,
   PARSER_CHARS,
   PARSER_DEBUG,
+  PARSER_END_OF_INPUT,
   PARSER_FIRST_OF,
+  PARSER_OPTIONAL,
   PARSER_SEP_BY,
   PARSER_SEQUENCE,
   PARSER_STRING,
@@ -33,15 +36,18 @@ typedef enum {
   // *_ERROR is actually just a *_STRING, but used as a marker to denote an error.
   PARSER_OUT_ERROR,
 
+  PARSER_OUT_CHAR,
   PARSER_OUT_INT,
   PARSER_OUT_LIST,
   PARSER_OUT_STRING,
-  PARSER_OUT_WHITESPACE,
+  PARSER_OUT_NO_DATA,
 } ParserOutType;
 
 typedef struct ParserOut {
   ParserOutType type;
   void *data;
+  int line;
+  int col;
 } ParserOut;
 
 void parser_out_free(ParserOut *);
@@ -62,6 +68,8 @@ ParserOut *parser_out_data_list_get(ParserOutDataList *, int);
 
 typedef struct {
   char *str;
+  int line;
+  int col;
 } ParserInMark;
 
 typedef struct {
@@ -78,15 +86,22 @@ void parser_in_free(ParserIn *);
 
 // === PARSER BUILDERS ===
 
+#define parser_ws() parser_whitespace()
+#define parser_opt_ws() parser_optional(parser_whitespace())
+
 Parser *parser_debug(void (*)(ParserIn *));
 Parser *parser_whitespace(void);
+Parser *parser_any_char(void);
 Parser *parser_char(char);
+Parser *parser_end_of_input(void);
 Parser *parser_string(char *);
 Parser *parser_uint(void);
 Parser *parser_adjacent(Parser *before, Parser *, Parser *after);
 Parser *parser_sequence(int count, ...);
+Parser *parser_optional(Parser *);
 Parser *parser_first_of(int count, ...);
 Parser *parser_take_many_1(Parser *);
+Parser *parser_take_many_til_1(Parser *, Parser *til);
 Parser *parser_sep_by(Parser *separator, Parser *);
 
 

@@ -39,7 +39,7 @@ when "run"
 
   require File.join(File.dirname(__FILE__), "lang", lang);
 
-  runner = Runner.new
+  runner = Runner.new(ARGV[1])
   runner.run(load_deps)
 when "init"
   year, day, lang, _ = Dir.pwd.delete_prefix(git_root).delete_prefix("/").split(File::SEPARATOR)

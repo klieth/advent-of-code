@@ -13,6 +13,10 @@ def build_dep(dep)
 end
 
 class Runner
+  def initialize(file)
+    @file = file || "../input"
+  end
+
   def init
     FileUtils.cp(File.join(template_dir("c"), "main.c"), ".")
   end
@@ -39,7 +43,7 @@ class Runner
   end
 
   def execute
-    system("build/main", "../input")
+    system("build/main", @file)
   end
 
   def run(deps = [])

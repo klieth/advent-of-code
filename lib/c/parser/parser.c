@@ -31,6 +31,7 @@ parser_free(Parser *p) {
 
   switch (p->type) {
     case PARSER_WHITESPACE:
+    case PARSER_ANY_CHAR:
     case PARSER_UINT:
       break;
     case PARSER_ADJACENT:
@@ -50,6 +51,9 @@ parser_free(Parser *p) {
     case PARSER_SEP_BY:
       parser_data_sep_by_free(p->data);
       break;
+    case PARSER_OPTIONAL:
+      parser_free(p->data);
+      break;
     default:
       printf("parser_free unrecognized type: %i\n", p->type);
       exit(1);
@@ -65,6 +69,8 @@ parser_in_new(char *str) {
   ParserIn *i = malloc(sizeof(ParserIn));
   i->str = str;
   i->mark.str = str;
+  i->mark.line = 0;
+  i->mark.col = 0;
   return i;
 }
 
@@ -80,22 +86,52 @@ parser_in_peek(ParserIn *in) {
   return *(in->mark.str);
 }
 
-char
-parser_in_next(ParserIn *in) {
+// TODO: A lot of the error handling for this looks exactly the same -- can this be a macro?
+bool
+parser_in_next(ParserIn *in, char *out) {
   char c = parser_in_peek(in);
+  switch (c) {
+    case '\0':
+      // This is a brute force mechanism to ensure we aren't consuming beyond
+      // the end of the input, so we can't get any optimizations from skipping
+      // multiple characters. If this gets too slow, this might need to be
+      // rethought.
+      return false;
+    case '\n':
+      in->mark.line++;
+      in->mark.col = 0;
+      break;
+    default:
+      in->mark.col++;
+  }
   in->mark.str++;
-  return c;
+  if (out) *out = c;
+  return true;
 }
 
-void
+bool
 parser_in_skip(ParserIn *in, int count) {
-  in->mark.str += count;
+  // while we could do something like this:
+  //in->mark.str += count;
+  // instead, looping like this forces us to inspect every character, which is
+  // necessary for a few things to work in this ParserIn implementation:
+  // - ensure we don't accidentally consume beyond the end of input
+  // - properly track the line and column of a token
+  // see the `switch` in parser_in_next for details on all the per-character
+  // checks.
+  for (int i = 0; i < count; i++) {
+    if (!parser_in_next(in, NULL)) return false;
+  }
+
+  return true;
 }
 
-void
+bool
 parser_in_take(ParserIn *in, int count, char *out) {
-  memcpy(out, in->mark.str, count);
-  parser_in_skip(in, count);
+  char *str = in->mark.str;
+  if (!parser_in_skip(in, count)) return false;
+  memcpy(out, str, count);
+  return true;
 }
 
 ParserInMark
@@ -107,6 +143,8 @@ void
 parser_in_rewind(ParserIn *in, ParserInMark *pim) {
   // TODO: assert that the specified mark was generated from this ParserIn.
   in->mark.str = pim->str;
+  in->mark.line = pim->line;
+  in->mark.col = pim->col;
 }
 
 // === PARSER OUT ===
@@ -178,29 +216,31 @@ parser_out_data_list_get(ParserOutDataList *list, int index) {
 }
 
 ParserOut *
-parser_out_new_take_data(ParserOutType type, void *data) {
+parser_out_new_take_data(ParserOutType type, ParserInMark loc, void *data) {
   ParserOut *out = malloc(sizeof(ParserOut));
   out->type = type;
   out->data = data;
+  out->line = loc.line;
+  out->col = loc.col;
   return out;
 }
 
 ParserOut *
-parser_out_new_copy_data(ParserOutType type, int size, void *data) {
+parser_out_new_copy_data(ParserOutType type, ParserInMark loc, int size, void *data) {
   void *copy = malloc(size);
   memcpy(copy, data, size);
-  return parser_out_new_take_data(type, copy);
+  return parser_out_new_take_data(type, loc, copy);
 }
 
 ParserOut *
-parser_out_new(ParserOutType type) {
-  return parser_out_new_take_data(type, NULL);
+parser_out_new(ParserOutType type, ParserInMark loc) {
+  return parser_out_new_take_data(type, loc, NULL);
 }
 
 const int PARSER_OUT_ERRBUF_MAX = 256;
 
 ParserOut *
-parser_out_error(char *fmt, ...) {
+parser_out_error(ParserInMark loc, char *fmt, ...) {
   char buf[PARSER_OUT_ERRBUF_MAX];
 
   va_list args;
@@ -208,18 +248,19 @@ parser_out_error(char *fmt, ...) {
   vsnprintf(buf, PARSER_OUT_ERRBUF_MAX, fmt, args);
   va_end(args);
 
-  return parser_out_new_copy_data(PARSER_OUT_ERROR, sizeof(char) * strlen(buf) + 1, buf);
+  return parser_out_new_copy_data(PARSER_OUT_ERROR, loc, sizeof(char) * strlen(buf) + 1, buf);
 }
 
 void
 parser_out_free(ParserOut *out) {
   switch (out->type) {
-    case PARSER_OUT_WHITESPACE:
+    case PARSER_OUT_NO_DATA:
       // data must be set to NULL, so there's nothing to free.
       break;
     case PARSER_OUT_LIST:
       parser_out_data_list_free(out->data);
       break;
+    case PARSER_OUT_CHAR:
     case PARSER_OUT_INT:
     case PARSER_OUT_ERROR:
     case PARSER_OUT_STRING:
@@ -243,12 +284,31 @@ parser_debug(void (*dbg)(ParserIn *)) {
 }
 
 Parser *
+parser_end_of_input(void) {
+  return parser_new(PARSER_END_OF_INPUT);
+}
+
+bool
+parser_run_end_of_input(ParserIn *in, ParserOut **out) {
+  char p = parser_in_peek(in);
+  if (p == '\0') {
+    *out = parser_out_new_copy_data(PARSER_OUT_CHAR, parser_in_mark(in), sizeof(char) * 1, &p);
+    return true;
+  } else {
+    *out = parser_out_error(parser_in_mark(in), "expected end of input, got %c", p);
+    return false;
+  }
+}
+
+Parser *
 parser_whitespace(void) {
   return parser_new(PARSER_WHITESPACE);
 }
 
 bool
 parser_run_whitespace(ParserIn *in, ParserOut **out) {
+  ParserInMark mark = parser_in_mark(in);
+  int count = 0;
   char n;
 
   while (true) {
@@ -256,14 +316,40 @@ parser_run_whitespace(ParserIn *in, ParserOut **out) {
 
     // TODO what else counts for whitespace?
     if (n == ' ' || n == '\n') {
-      parser_in_skip(in, 1);
+      if (!parser_in_next(in, NULL)) {
+        *out = parser_out_error(mark, "expected whitespace, got end of input");
+        return false;
+      }
+
+      count++;
     } else {
       break;
     }
   }
 
-  *out = parser_out_new(PARSER_OUT_WHITESPACE);
+  if (count == 0) {
+    *out = parser_out_error(mark, "expected whitespace, found %c", n);
+    return false;
+  } else {
+    *out = parser_out_new(PARSER_OUT_NO_DATA, mark);
+    return true;
+  }
+}
 
+Parser *
+parser_any_char(void) {
+  return parser_new(PARSER_ANY_CHAR);
+}
+
+bool
+parser_run_any_char(ParserIn *in, ParserOut **out) {
+  ParserInMark mark = parser_in_mark(in);
+  char *ch = malloc(sizeof(char));
+  if (!parser_in_next(in, ch)) {
+    *out = parser_out_error(mark, "expected a character, got end of input");
+    return false;
+  }
+  *out = parser_out_new_take_data(PARSER_OUT_CHAR, mark, ch);
   return true;
 }
 
@@ -287,21 +373,25 @@ parser_string(char *str) {
 
 bool
 parser_run_string(ParserIn *in, char *p, ParserOut **out) {
+  ParserInMark mark = parser_in_mark(in);
   char *data = p;
+  char next;
 
   while (*data) {
-    char next = parser_in_next(in);
+    if (!parser_in_next(in, &next)) {
+      *out = parser_out_error(mark, "expected a string, got end of input");
+      return false;
+    }
 
     if (*data != next) {
-      *out = parser_out_error("character does not match: expected %c, got %c", *data, next);
-
+      *out = parser_out_error(mark, "character does not match: expected %c, got %c", *data, next);
       return false;
     }
 
     data++;
   }
 
-  *out = parser_out_new_copy_data(PARSER_OUT_STRING, sizeof(char) * strlen(p) + 1, p);
+  *out = parser_out_new_copy_data(PARSER_OUT_STRING, mark, sizeof(char) * strlen(p) + 1, p);
 
   return true;
 };
@@ -320,22 +410,28 @@ parser_run_uint(ParserIn *in, ParserOut **out) {
 
   while (data >= '0' && data <= '9') {
     count++;
-    parser_in_next(in);
+    if (!parser_in_next(in, NULL)) {
+      *out = parser_out_error(mark, "expected a uint, got end of input");
+      return false;
+    }
     data = parser_in_peek(in);
   }
 
   if (count == 0) {
-    *out = parser_out_error("expected uint character, got %c\n", data);
+    *out = parser_out_error(mark, "expected uint character, got %c\n", data);
     return false;
   }
 
   parser_in_rewind(in, &mark);
 
   char *str = malloc(sizeof(char) * count + 1);
-  parser_in_take(in, count, str);
+  if (!parser_in_take(in, count, str)) {
+    *out = parser_out_error(mark, "expected a uint after rewinding, got end of input");
+    return false;
+  }
   str[count] = '\0';
 
-  *out = parser_out_new_take_data(PARSER_OUT_INT, str);
+  *out = parser_out_new_take_data(PARSER_OUT_INT, mark, str);
 
   return true;
 }
@@ -458,6 +554,8 @@ parser_sequence(int count, ...) {
 
 bool
 parser_run_sequence(ParserIn *in, ParserDataParserList *p, ParserOut **out) {
+  ParserInMark token_start = parser_in_mark(in);
+
   int count = 0;
   ParserOut *next = NULL;
   ParserOutDataList *pod = parser_out_data_list_new();
@@ -474,7 +572,26 @@ parser_run_sequence(ParserIn *in, ParserDataParserList *p, ParserOut **out) {
     }
   }
 
-  *out = parser_out_new_take_data(PARSER_OUT_LIST, pod);
+  *out = parser_out_new_take_data(PARSER_OUT_LIST, token_start, pod);
+
+  return true;
+}
+
+Parser *
+parser_optional(Parser *sub) {
+  Parser *p = parser_new(PARSER_OPTIONAL);
+  p->data = sub;
+  return p;
+}
+
+bool
+parser_run_optional(ParserIn *in, Parser *p, ParserOut **out) {
+  ParserInMark mark = parser_in_mark(in);
+
+  if (!parser_run(in, p, out)) {
+    parser_out_free(*out);
+    *out = parser_out_new(PARSER_OUT_NO_DATA, mark);
+  }
 
   return true;
 }
@@ -501,8 +618,9 @@ parser_first_of(int count, ...) {
 
 bool
 parser_run_first_of(ParserIn *in, ParserDataParserList *pd, ParserOut **out) {
+  ParserInMark mark = parser_in_mark(in);
+
   for (int i = 0; i < parser_data_parser_list_size(pd); i++) {
-    ParserInMark mark = parser_in_mark(in);
     Parser *n = parser_data_parser_list_get(pd, i);
 
     if (parser_run(in, n, out)) {
@@ -522,6 +640,7 @@ parser_run_first_of(ParserIn *in, ParserDataParserList *pd, ParserOut **out) {
 struct ParserDataTakeMany {
   int min;
   Parser *sub;
+  Parser *end;
 };
 
 void
@@ -535,11 +654,17 @@ parser_data_take_many_free(ParserDataTakeMany *pd) {
 
 Parser *
 parser_take_many_1(Parser *sub) {
+  return parser_take_many_til_1(sub, NULL);
+}
+
+Parser *
+parser_take_many_til_1(Parser *sub, Parser *end) {
   Parser *p = parser_new(PARSER_TAKE_MANY);
 
   ParserDataTakeMany *pd = malloc(sizeof(ParserDataTakeMany));
   pd->min = 1;
   pd->sub = sub;
+  pd->end = end;
 
   p->data = pd;
 
@@ -548,31 +673,38 @@ parser_take_many_1(Parser *sub) {
 
 bool
 parser_run_take_many(ParserIn *in, ParserDataTakeMany *pd, ParserOut **out) {
+  ParserInMark token_start = parser_in_mark(in);
+
   int count = 0;
   ParserOut *next = NULL;
   ParserOutDataList *pod = parser_out_data_list_new();
 
   while (true) {
-    ParserInMark pim = parser_in_mark(in);
+    ParserInMark iteration_start = parser_in_mark(in);
+
+    if (pd->end) {
+      bool should_end = parser_run(in, pd->end, &next);
+      parser_out_free(next);
+      if (should_end) break;
+    }
 
     if (parser_run(in, pd->sub, &next)) {
       count++;
       parser_out_data_list_append(pod, next);
     } else {
-      parser_in_rewind(in, &pim);
+      parser_out_free(next);
+      parser_in_rewind(in, &iteration_start);
       break;
     }
   }
 
   if (count < pd->min) {
-    printf("expected at least %i, got %i\n", pd->min, count);
-    printf("parser_run_take_many todo error handling\n"); // TODO error handling
-    exit(1);
+    *out = parser_out_error(token_start, "expected at least %i, got %i", pd->min, count);
+    return false;
+  } else {
+    *out = parser_out_new_take_data(PARSER_OUT_LIST, token_start, pod);
+    return true;
   }
-
-  *out = parser_out_new_take_data(PARSER_OUT_LIST, pod);
-
-  return true;
 }
 
 struct ParserDataSepBy {
@@ -636,7 +768,7 @@ parser_run_sep_by(ParserIn *in, ParserDataSepBy *pd, ParserOut **out) {
     }
   }
 
-  *out = parser_out_new_take_data(PARSER_OUT_LIST, pod);
+  *out = parser_out_new_take_data(PARSER_OUT_LIST, parser_in_mark(in), pod);
 
   return true;
 }
@@ -650,6 +782,15 @@ parser_run(ParserIn *in, Parser *p, ParserOut **out) {
   switch (p->type) {
     case PARSER_ADJACENT:
       result = parser_run_adjacent(in, p->data, out);
+      break;
+    case PARSER_ANY_CHAR:
+      result = parser_run_any_char(in, out);
+      break;
+    case PARSER_END_OF_INPUT:
+      result = parser_run_end_of_input(in, out);
+      break;
+    case PARSER_OPTIONAL:
+      result = parser_run_optional(in, p->data, out);
       break;
     case PARSER_FIRST_OF:
       result = parser_run_first_of(in, p->data, out);
@@ -685,6 +826,7 @@ parser_run(ParserIn *in, Parser *p, ParserOut **out) {
 
 void
 parser_print_error(ParserOut *o) {
-  printf("parser_print_error todo\n");
+  printf("Error: %s\n", o->data);
+  printf("at %i:%i\n", o->line, o->col);
   exit(1);
 }

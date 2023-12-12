@@ -88,8 +88,8 @@ handful(void) {
   return parser_sep_by(
       parser_char(','),
       parser_sequence(2,
-        parser_adjacent(parser_whitespace(), parser_uint(), NULL),
-        parser_adjacent(parser_whitespace(), parser_first_of(3, parser_string("red"), parser_string("green"), parser_string("blue")), parser_whitespace())
+        parser_adjacent(parser_opt_ws(), parser_uint(), NULL),
+        parser_adjacent(parser_opt_ws(), parser_first_of(3, parser_string("red"), parser_string("green"), parser_string("blue")), parser_opt_ws())
       )
   );
 }
@@ -105,10 +105,10 @@ parse(char *raw, Game ***games_out) {
 
   p = parser_sequence(4,
       parser_string("Game"),
-      parser_adjacent(parser_whitespace(), parser_uint(), NULL),
+      parser_adjacent(parser_opt_ws(), parser_uint(), NULL),
       parser_char(':'),
-      parser_adjacent(parser_whitespace(), handfuls(), parser_whitespace()));
-  p = parser_take_many_1(p);
+      parser_adjacent(parser_opt_ws(), handfuls(), parser_opt_ws()));
+  p = parser_take_many_til_1(p, parser_end_of_input());
 
   ParserIn *i = parser_in_new(raw);
   ParserOut *out = NULL;

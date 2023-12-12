@@ -22,3 +22,7 @@ build/
 lakefile.olean
 lake-packages/
 .lake/
+
+# ====== C ======
+build/
+.gdb_history

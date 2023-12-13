@@ -1,4 +1,5 @@
 require "open3"
+require "yaml"
 
 def git_root
   @git_root ||= begin
@@ -22,30 +23,27 @@ end
 def load_deps
   @deps ||=
     begin
-      if File.exist?("aocdeps")
-        File.read("aocdeps").lines.map(&:strip)
+      if File.exist?("aocdeps.yaml")
+        YAML.load(File.read("aocdeps.yaml"))
       else
-        []
+        {}
       end
     end
 end
 
-case ARGV[0]
-when "run"
+def parse_directory
   year, day, lang, _ = Dir.pwd.delete_prefix(git_root).delete_prefix("/").split(File::SEPARATOR)
 
   year = Integer(year)
   day = Integer(day.delete_prefix("d"))
 
-  require File.join(File.dirname(__FILE__), "lang", lang);
+  [year, day, lang]
+end
 
-  runner = Runner.new(ARGV[1])
-  runner.run(load_deps)
-when "init"
-  year, day, lang, _ = Dir.pwd.delete_prefix(git_root).delete_prefix("/").split(File::SEPARATOR)
+# === OPS ===
 
-  year = Integer(year)
-  day = Integer(day.delete_prefix("d"))
+def init
+  year, day, lang = parse_directory
 
   if lang.nil?
     lang = ARGV[1]
@@ -57,4 +55,37 @@ when "init"
 
   runner = Runner.new
   runner.init
+
+  runner
+end
+
+def build
+  year, day, lang = parse_directory
+
+  require File.join(File.dirname(__FILE__), "lang", lang);
+
+  runner = Runner.new
+  if !runner.build(load_deps)
+    throw "build failed"
+  end
+
+  runner
+end
+
+def run(file)
+  runner = build
+
+  runner.run(file)
+
+  runner
+end
+
+OPS = ["init", "build", "run"]
+
+if OPS.include?(ARGV[0])
+  m = method(ARGV[0])
+  m.call(*ARGV[1..m.arity])
+else
+  puts "unrecognized op #{ARGV[0]}"
+  exit 1
 end

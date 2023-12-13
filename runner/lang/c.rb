@@ -8,13 +8,12 @@ def build_dep(dep)
   source_files = Dir.glob(File.join(dep_dir, "*.c"))
 
   # TODO: only build if any source files are newer than the object file
-
+  # TODO this builds the library separately into every day; can it be built into its own build directory and shared?
   system("gcc", "-g", "-Werror", "-c", "-o", "build/#{dep}.o", *source_files)
 end
 
 class Runner
-  def initialize(file)
-    @file = file || "../input"
+  def initialize
   end
 
   def init
@@ -26,15 +25,23 @@ class Runner
 
     gcc = ["gcc", "-g", "-Werror"]
 
-    if deps.size > 0
-      deps.each do |dep|
+    aocdeps = deps["aoc"] || []
+
+    if aocdeps.size > 0
+      aocdeps.each do |dep|
         raise "Failed to build dependency '#{dep}', quitting" if !build_dep(dep)
       end
 
-      gcc += deps.map { |m| "-I#{lib_dir("c", m)}" }
+      gcc += aocdeps.map { |m| "-I#{lib_dir("c", m)}" }
 
       gcc << "-Lbuild"
-      gcc += deps.map { |m| "-l:#{m}.o" }
+      gcc += aocdeps.map { |m| "-l:#{m}.o" }
+    end
+
+    stddeps = deps["std"] || []
+
+    if stddeps.size > 0
+      gcc += stddeps.map { |m| "-l#{m}" }
     end
 
     gcc += ["-o", "build/main", "main.c"]
@@ -42,11 +49,11 @@ class Runner
     system(*gcc)
   end
 
-  def execute
-    system("build/main", @file)
+  def execute(*args)
+    system("build/main", *args)
   end
 
-  def run(deps = [])
-    build(deps) && execute
+  def run(*args)
+    execute(*args)
   end
 end

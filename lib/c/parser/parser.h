@@ -102,6 +102,8 @@ Parser *parser_optional(Parser *);
 Parser *parser_first_of(int count, ...);
 Parser *parser_take_many_1(Parser *);
 Parser *parser_take_many_til_1(Parser *, Parser *til);
+Parser *parser_take_N(int, Parser *);
+Parser *parser_drop_til(Parser *);
 Parser *parser_sep_by(Parser *separator, Parser *);
 
 

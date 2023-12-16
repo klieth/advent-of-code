@@ -1,5 +1,6 @@
 #include "parser.h"
 
+#include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -314,7 +315,8 @@ parser_run_whitespace(ParserIn *in, ParserOut **out) {
   while (true) {
     n = parser_in_peek(in);
 
-    // TODO what else counts for whitespace?
+    // TODO: what else counts for whitespace?
+    // TODO: isspace
     if (n == ' ' || n == '\n') {
       if (!parser_in_next(in, NULL)) {
         *out = parser_out_error(mark, "expected whitespace, got end of input");
@@ -384,6 +386,7 @@ parser_run_string(ParserIn *in, char *p, ParserOut **out) {
     }
 
     if (*data != next) {
+      parser_in_rewind(in, &mark);
       *out = parser_out_error(mark, "character does not match: expected %c, got %c", *data, next);
       return false;
     }
@@ -408,6 +411,7 @@ parser_run_uint(ParserIn *in, ParserOut **out) {
   char data = parser_in_peek(in);
   int count = 0;
 
+  // TODO isdigit
   while (data >= '0' && data <= '9') {
     count++;
     if (!parser_in_next(in, NULL)) {
@@ -639,6 +643,7 @@ parser_run_first_of(ParserIn *in, ParserDataParserList *pd, ParserOut **out) {
 
 struct ParserDataTakeMany {
   int min;
+  int max;
   Parser *sub;
   Parser *end;
 };
@@ -653,22 +658,38 @@ parser_data_take_many_free(ParserDataTakeMany *pd) {
 }
 
 Parser *
-parser_take_many_1(Parser *sub) {
-  return parser_take_many_til_1(sub, NULL);
-}
-
-Parser *
-parser_take_many_til_1(Parser *sub, Parser *end) {
+parser_take_many_build(bool set_min, int min, bool set_max, int max, Parser *sub, Parser *end) {
   Parser *p = parser_new(PARSER_TAKE_MANY);
 
   ParserDataTakeMany *pd = malloc(sizeof(ParserDataTakeMany));
-  pd->min = 1;
+  pd->min = set_min ? min : 0;
+  pd->max = set_max ? max : INT_MAX;
   pd->sub = sub;
   pd->end = end;
 
   p->data = pd;
 
   return p;
+}
+
+Parser *
+parser_take_many_1(Parser *sub) {
+  return parser_take_many_build(true, 1, false, 0, sub, NULL);
+}
+
+Parser *
+parser_take_many_til_1(Parser *sub, Parser *end) {
+  return parser_take_many_build(true, 1, false, 0, sub, end);
+}
+
+Parser *
+parser_take_N(int n, Parser *sub) {
+  return parser_take_many_build(true, n, true, n, sub, NULL);
+}
+
+Parser *
+parser_drop_til(Parser *end) {
+  return parser_take_many_build(false, 0, false, 0, parser_any_char(), end);
 }
 
 bool
@@ -679,7 +700,7 @@ parser_run_take_many(ParserIn *in, ParserDataTakeMany *pd, ParserOut **out) {
   ParserOut *next = NULL;
   ParserOutDataList *pod = parser_out_data_list_new();
 
-  while (true) {
+  while (count < pd->max) {
     ParserInMark iteration_start = parser_in_mark(in);
 
     if (pd->end) {

@@ -2,6 +2,44 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <parser.h>
+
+#define todo() do { printf("%s todo: line %i\n", __FUNCTION__, __LINE__); exit(1); } while (0)
+
+/* TODO: return type, if not a count */
+int
+parse(char *buffer /* TODO: output param, if not returned */) {
+  Parser *p;
+
+  // TODO: build parser
+
+  ParserIn *in = parser_in_new(buffer);
+  ParserOut *out = NULL;
+
+  if (parser_run(in, p, &out)) {
+    // TODO: run parser
+  } else {
+    parser_print_error(out);
+    exit(1);
+  }
+
+  parser_in_free(in);
+  parser_free(p);
+  parser_out_free(out);
+
+  return 0; // TODO: output value
+}
+
+int
+part1(int count) {
+  todo();
+}
+
+int
+part2(int count) {
+  todo();
+}
+
 int
 main(int argc, char *argv[]) {
   if (argc < 2) {
@@ -33,9 +71,12 @@ main(int argc, char *argv[]) {
 
   fclose(f);
 
-  // TODO: use buffer
+  // TODO: return type and/or output parameter
+  int count = parse(buffer);
 
   free(buffer);
 
-  // TODO: run part1 and part2
+  // TODO: proper parameter(s)
+  printf("part1: %i\n", part1(count));
+  printf("part2: %i\n", part2(count));
 }

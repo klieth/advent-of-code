@@ -9,11 +9,11 @@ deriving Repr
 
 protected abbrev Parser := SimpleParser Substring Char
 
-protected def all : Data.Parser (Array Data.Line) :=
+protected def all : Data.Parser (List Data.Line) :=
   withErrorMessage "expected all" do
-    pure [].toArray
+    throwUnexpected
 
-protected def parse (raw : String) : Except String (Array Data.Line) :=
+protected def parse (raw : String) : Except String (List Data.Line) :=
   match Parser.run (Data.all <* Parser.endOfInput) raw.toSubstring with
   | .ok _ n => .ok n
   | .error e => .error s!"Failed! {e}"

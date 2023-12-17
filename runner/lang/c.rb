@@ -18,7 +18,7 @@ class Runner
 
   def init
     throw "already initialized" if File.exist?("main.c")
-    FileUtils.cp(Dir.glob(File.join(template_dir("*"), "*")), ".")
+    FileUtils.cp(Dir.glob(File.join(template_dir("c"), "*")), ".")
   end
 
   def build(deps)

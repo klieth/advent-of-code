@@ -14,6 +14,7 @@ typedef enum {
   PARSER_END_OF_INPUT,
   PARSER_FIRST_OF,
   PARSER_OPTIONAL,
+  PARSER_REF,
   PARSER_SEP_BY,
   PARSER_SEQUENCE,
   PARSER_STRING,
@@ -88,6 +89,10 @@ void parser_in_free(ParserIn *);
 
 #define parser_ws() parser_whitespace()
 #define parser_opt_ws() parser_optional(parser_whitespace())
+
+// A parser can only be owned in one location, so any other references to this
+// pointer must be wrapped in a parser_ref()
+Parser *parser_ref(Parser *);
 
 Parser *parser_debug(void (*)(ParserIn *));
 Parser *parser_whitespace(void);

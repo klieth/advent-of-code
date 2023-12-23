@@ -55,6 +55,9 @@ parser_free(Parser *p) {
     case PARSER_OPTIONAL:
       parser_free(p->data);
       break;
+    case PARSER_REF:
+      // This doesn't own its subparser, so we don't free anything.
+      break;
     default:
       printf("parser_free unrecognized type: %i\n", p->type);
       exit(1);
@@ -276,6 +279,13 @@ parser_out_free(ParserOut *out) {
 }
 
 // === BUILDERS & RUNNERS ===
+
+Parser *
+parser_ref(Parser *sub) {
+  Parser *p = parser_new(PARSER_REF);
+  p->data = sub;
+  return p;
+}
 
 Parser *
 parser_debug(void (*dbg)(ParserIn *)) {
@@ -635,8 +645,9 @@ parser_run_first_of(ParserIn *in, ParserDataParserList *pd, ParserOut **out) {
     }
   }
 
-  printf("parser_run_first_of todo error handling\n"); // TODO error handling
-  exit(1);
+  // TODO: there needs to be a way to ask every type of parser what the next expected token would be
+  // The ideal error message here would include "expected one of [list of next expected tokens from each parser], but got %c"
+  *out = parser_out_error(mark, "expected first_of a set of parsers, got %c", parser_in_peek(in));
 
   return false;
 }
@@ -833,6 +844,11 @@ parser_run(ParserIn *in, Parser *p, ParserOut **out) {
       break;
     case PARSER_WHITESPACE:
       result = parser_run_whitespace(in, out);
+      break;
+    case PARSER_REF:
+      // this is just a reference to a parser without any special behavior, so
+      // we short-circuit back to the top-level parser_run
+      result = parser_run(in, p->data, out);
       break;
     default:
       printf("unimplemented parser type %i\n", p->type);

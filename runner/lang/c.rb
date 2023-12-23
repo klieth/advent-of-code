@@ -51,7 +51,7 @@ class Runner
   end
 
   def execute(*args)
-    system("build/main", *args)
+    system("build/main", *args, exception: true)
   end
 
   def run(*args)

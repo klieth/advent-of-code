@@ -13,6 +13,7 @@ typedef enum {
   PARSER_DEBUG,
   PARSER_END_OF_INPUT,
   PARSER_FIRST_OF,
+  PARSER_INT,
   PARSER_OPTIONAL,
   PARSER_REF,
   PARSER_SEP_BY,
@@ -64,6 +65,15 @@ int parser_out_data_list_size(ParserOutDataList *);
 ParserOut *parser_out_data_list_get(ParserOutDataList *, int);
 
 
+// === ParserOutDataInt ===
+
+typedef struct ParserOutDataInt ParserOutDataInt;
+
+char *parser_out_data_get_int_raw(ParserOutDataInt *);
+unsigned int parser_out_data_get_uint(ParserOutDataInt *);
+int parser_out_data_get_int(ParserOutDataInt *);
+
+
 
 // === ParserIn ===
 
@@ -101,6 +111,7 @@ Parser *parser_char(char);
 Parser *parser_end_of_input(void);
 Parser *parser_string(char *);
 Parser *parser_uint(void);
+Parser *parser_int(void);
 Parser *parser_adjacent(Parser *before, Parser *, Parser *after);
 Parser *parser_sequence(int count, ...);
 Parser *parser_optional(Parser *);

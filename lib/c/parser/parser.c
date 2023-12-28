@@ -33,6 +33,7 @@ parser_free(Parser *p) {
   switch (p->type) {
     case PARSER_WHITESPACE:
     case PARSER_ANY_CHAR:
+    case PARSER_INT:
     case PARSER_UINT:
       break;
     case PARSER_ADJACENT:
@@ -409,6 +410,28 @@ parser_run_string(ParserIn *in, char *p, ParserOut **out) {
   return true;
 };
 
+struct ParserOutDataInt {
+  bool negative;
+  char *digits;
+};
+
+char *
+parser_out_data_get_int_raw(ParserOutDataInt *pod) {
+  return pod->digits;
+}
+
+unsigned int
+parser_out_data_get_uint(ParserOutDataInt *pod) {
+  return atoi(pod->digits);
+}
+
+int
+parser_out_data_get_int(ParserOutDataInt *pod) {
+  int ret = parser_out_data_get_uint(pod);
+  if (pod->negative) ret *= -1;
+  return ret;
+}
+
 Parser *
 parser_uint(void) {
   return parser_new(PARSER_UINT);
@@ -438,14 +461,44 @@ parser_run_uint(ParserIn *in, ParserOut **out) {
 
   parser_in_rewind(in, &mark);
 
-  char *str = malloc(sizeof(char) * count + 1);
-  if (!parser_in_take(in, count, str)) {
+  ParserOutDataInt pod;
+  pod.negative = false;
+
+  pod.digits = malloc(sizeof(char) * count + 1);
+  if (!parser_in_take(in, count, pod.digits)) {
     *out = parser_out_error(mark, "expected a uint after rewinding, got end of input");
     return false;
   }
-  str[count] = '\0';
+  pod.digits[count] = '\0';
 
-  *out = parser_out_new_take_data(PARSER_OUT_INT, mark, str);
+  *out = parser_out_new_copy_data(PARSER_OUT_INT, mark, sizeof(ParserOutDataInt), &pod);
+
+  return true;
+}
+
+Parser *
+parser_int(void) {
+  return parser_new(PARSER_INT);
+}
+
+bool
+parser_run_int(ParserIn *in, ParserOut **out) {
+  bool negative = false;
+  if (parser_in_peek(in) == '-') {
+    // no need to check the return value of parser_in_next. it should be
+    // impossible to hit an error here since we've already checked that the
+    // next character is valid.
+    parser_in_next(in, NULL);
+    negative = true;
+  }
+
+  if (!parser_run_uint(in, out)) {
+    // `out` will already be set to a relevant error, so we can skip setting an
+    // error message here.
+    return false;
+  }
+
+  ( (ParserOutDataInt *) ((*out)->data) )->negative = negative;
 
   return true;
 }
@@ -821,6 +874,9 @@ parser_run(ParserIn *in, Parser *p, ParserOut **out) {
     case PARSER_END_OF_INPUT:
       result = parser_run_end_of_input(in, out);
       break;
+    case PARSER_INT:
+      result = parser_run_int(in, out);
+      break;
     case PARSER_OPTIONAL:
       result = parser_run_optional(in, p->data, out);
       break;
@@ -851,7 +907,7 @@ parser_run(ParserIn *in, Parser *p, ParserOut **out) {
       result = parser_run(in, p->data, out);
       break;
     default:
-      printf("unimplemented parser type %i\n", p->type);
+      printf("parser_run unimplemented parser type %i\n", p->type);
       exit(1);
       break;
   }

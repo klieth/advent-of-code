@@ -66,8 +66,8 @@ schematic_build(ParserOut *out) {
     switch (entry->type) {
       case PARSER_OUT_INT:
         Number *n = &(schematic->numbers[num_numbers++]);
-        n->value = atoi(entry->data);
-        n->length = strlen(entry->data);
+        n->value = parser_out_data_get_uint(entry->data);
+        n->length = strlen(parser_out_data_get_int_raw(entry->data));
         n->x = entry->col;
         n->y = entry->line;
         break;

@@ -20,8 +20,8 @@ races_build(ParserOut *out, int **times, int **records) {
   *records = malloc(sizeof(int) * num_races);
 
   for (int i = 0; i < num_races; i++) {
-    (*times)[i] = atoi(parser_out_data_list_get(raw_times->data, i)->data);
-    (*records)[i] = atoi(parser_out_data_list_get(raw_records->data, i)->data);
+    (*times)[i] = parser_out_data_get_uint(parser_out_data_list_get(raw_times->data, i)->data);
+    (*records)[i] = parser_out_data_get_uint(parser_out_data_list_get(raw_records->data, i)->data);
   }
 
   return num_races;

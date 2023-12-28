@@ -29,7 +29,7 @@ build_hands(ParserOut *out, Hand **hands) {
     }
 
     ParserOut *raw_bid = parser_out_data_list_get(raw_hand->data, 1);
-    (*hands)[i].bid = atoi(raw_bid->data);
+    (*hands)[i].bid = parser_out_data_get_uint(raw_bid->data);
   }
 
   return num_hands;

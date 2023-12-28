@@ -34,14 +34,14 @@ card_build_many(ParserOut *out, Card ***cards) {
     card->num_winning = parser_out_data_list_size(winning->data);
     card->winning = malloc(sizeof(int) * card->num_winning);
     for (int j = 0; j < card->num_winning; j++) {
-      card->winning[j] = atoi(parser_out_data_list_get(winning->data, j)->data);
+      card->winning[j] = parser_out_data_get_uint(parser_out_data_list_get(winning->data, j)->data);
     }
 
     ParserOut *numbers = parser_out_data_list_get(sep_by->data, 1);
     card->num_numbers = parser_out_data_list_size(numbers->data);
     card->numbers = malloc(sizeof(int) * card->num_numbers);
     for (int j = 0; j < card->num_numbers; j++) {
-      card->numbers[j] = atoi(parser_out_data_list_get(numbers->data, j)->data);
+      card->numbers[j] = parser_out_data_get_uint(parser_out_data_list_get(numbers->data, j)->data);
     }
 
     (*cards)[i] = card;

@@ -36,7 +36,7 @@ almanac_build(ParserOut *out) {
   a->seeds = malloc(sizeof(int) * a->num_seeds);
 
   for (int i = 0; i < a->num_seeds; i++) {
-    a->seeds[i] = atoi(parser_out_data_list_get(seed_line->data, i)->data);
+    a->seeds[i] = parser_out_data_get_uint(parser_out_data_list_get(seed_line->data, i)->data);
   }
 
   ParserOut *map_chunks = parser_out_data_list_get(out->data, 1);
@@ -51,9 +51,9 @@ almanac_build(ParserOut *out) {
     a->mappings[i].ranges = malloc(sizeof(MapRange) * a->mappings[i].num_ranges);
     for (int j = 0; j < a->mappings[i].num_ranges; j++) {
       ParserOut *mapping_data = parser_out_data_list_get(chunk->data, j);
-      a->mappings[i].ranges[j].dst = atoi(parser_out_data_list_get(mapping_data->data, 0)->data);
-      a->mappings[i].ranges[j].src = atoi(parser_out_data_list_get(mapping_data->data, 1)->data);
-      a->mappings[i].ranges[j].size = atoi(parser_out_data_list_get(mapping_data->data, 2)->data);
+      a->mappings[i].ranges[j].dst = parser_out_data_get_uint(parser_out_data_list_get(mapping_data->data, 0)->data);
+      a->mappings[i].ranges[j].src = parser_out_data_get_uint(parser_out_data_list_get(mapping_data->data, 1)->data);
+      a->mappings[i].ranges[j].size = parser_out_data_get_uint(parser_out_data_list_get(mapping_data->data, 2)->data);
     }
   }
 

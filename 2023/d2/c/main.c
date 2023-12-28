@@ -23,7 +23,8 @@ handful_build(ParserOut *raw_handful) {
   for (int i = 0; i < num_colors; i++) {
     ParserOut *set = parser_out_data_list_get(raw_handful->data, i);
 
-    int amt = atoi(parser_out_data_list_get(set->data, 0)->data);
+    ParserOut *raw_amt = parser_out_data_list_get(set->data, 0);
+    int amt = parser_out_data_get_uint(raw_amt->data);
     char *color = parser_out_data_list_get(set->data, 1)->data;
 
     if (strcmp(color, "red") == 0) {
@@ -69,8 +70,8 @@ game_build_many(ParserOut *out, Game ***games_out) {
 
     ParserOut *game_ast = parser_out_data_list_get(out->data, i);
 
-    char *game_id_str = parser_out_data_list_get(game_ast->data, 1)->data;
-    (*games_out)[i]->id = atoi(game_id_str);
+    ParserOut *raw_id = parser_out_data_list_get(game_ast->data, 1);
+    (*games_out)[i]->id = parser_out_data_get_uint(raw_id->data);
 
     ParserOut *handfuls = parser_out_data_list_get(game_ast->data, 3);
     (*games_out)[i]->num_handfuls = handful_build_many(handfuls, &(*games_out)[i]->handfuls);

@@ -55,7 +55,7 @@ def takeStep (m : Data.Map) (acc : (String × Nat)) (d : (String × String) -> S
   if stepped.get! ⟨2⟩ == 'Z' then throw (.found_end (acc.snd + 1))
   else .ok (stepped, acc.snd + 1)
 
-unsafe def wander (m : Data.Map) (start : String) : Except String Nat :=
+partial def wander (m : Data.Map) (start : String) : Except String Nat :=
   let rec loop (state : (String × Nat)) : Except String Nat :=
     match m.directions.foldlM (takeStep m) state with
     | .error (.found_end steps) => .ok steps
@@ -63,16 +63,16 @@ unsafe def wander (m : Data.Map) (start : String) : Except String Nat :=
     | .ok s => loop s
   loop (start, 0)
 
-unsafe def part1 (m : Data.Map) : Except String Nat := wander m "AAA"
+def part1 (m : Data.Map) : Except String Nat := wander m "AAA"
 
-unsafe def part2 (m : Data.Map) : Except String Nat :=
+def part2 (m : Data.Map) : Except String Nat :=
   let isStartState (s : String) : Bool := s.get! ⟨2⟩ == 'A'
   let startStates := m.graph.fold (fun acc k _ => if isStartState k then k :: acc else acc) []
   let endSteps := startStates.map (wander m)
   endSteps.foldlM (fun acc n => do pure (Nat.lcm acc (<- n))) 1
 
--- unsafe: because the direction list can be traversed an infinite number of times, we can never prove that traversing this graph ever terminates.
-unsafe def main (args : List String) : IO Unit := do
+-- partial: because the direction list can be traversed an infinite number of times, we can never prove that traversing this graph ever terminates.
+def main (args : List String) : IO Unit := do
   let filename <- match args.get? 0 with
     | .some f => pure f
     | .none => throw (IO.userError "no filename specified")

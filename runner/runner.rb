@@ -80,12 +80,22 @@ def run(file)
   runner
 end
 
-OPS = ["init", "build", "run"]
+def help
+  usage
+  exit
+end
+
+OPS = ["init", "build", "run", "help"]
+
+def usage
+  puts "usage: ruby runner.rb [init|build|run]"
+end
 
 if OPS.include?(ARGV[0])
   m = method(ARGV[0])
   m.call(*ARGV[1..m.arity])
 else
   puts "unrecognized op #{ARGV[0]}"
+  usage
   exit 1
 end

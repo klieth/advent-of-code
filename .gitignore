@@ -1,3 +1,7 @@
+# ====== operational files ======
+# The maintainer has asked that people not upload their input files
+input
+
 # ====== Rust ======
 # will have compiled files and executables
 target/

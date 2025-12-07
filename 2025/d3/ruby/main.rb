@@ -34,7 +34,7 @@ test1 = "987654321111111
 818181911112111"
 
 hardcoded_data = {
-  :test1 => test1,
+  "test1" => test1,
 }
 
 input_name = ARGV[0]
